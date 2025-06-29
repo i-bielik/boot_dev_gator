@@ -1,13 +1,18 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/i-bielik/boot-dev-gator/internal/config"
+	"github.com/i-bielik/boot-dev-gator/internal/database"
 )
 
 // state and command structs
 type state struct {
+	db     *database.Queries
 	Config *config.Config
 }
 
@@ -25,11 +30,70 @@ func handlerLogin(s *state, cmd command) error {
 		return fmt.Errorf("username is required")
 	}
 	username := cmd.Args[0]
-	err := s.Config.SetUser(username)
+
+	// Check if user exists
+	existingUser, err := s.db.GetUser(context.Background(), username)
+	if err != nil {
+		if err.Error() == "sql: no rows in result set" {
+			return fmt.Errorf("user does not exist: %s", username)
+		}
+		return fmt.Errorf("could not check existing user: %w", err)
+	}
+	if existingUser.Name != username {
+		return fmt.Errorf("user does not match: %s", username)
+	}
+
+	err = s.Config.SetUser(username)
 	if err != nil {
 		return fmt.Errorf("could not set user: %w", err)
 	}
 	fmt.Printf("User set to: %s\n", username)
+	return nil
+}
+
+func handlerRegister(s *state, cmd command) error {
+	if len(cmd.Args) < 1 {
+		return fmt.Errorf("username is required")
+	}
+	username := cmd.Args[0]
+
+	var user database.CreateUserParams
+	user.ID = uuid.New()
+	user.CreatedAt = time.Now()
+	user.UpdatedAt = time.Now()
+	user.Name = username
+
+	// Check if user already exists
+	existingUser, err := s.db.GetUser(context.Background(), username)
+	if err != nil && err.Error() != "sql: no rows in result set" {
+		return fmt.Errorf("could not check existing user: %w", err)
+	}
+	if existingUser.Name == username {
+		return fmt.Errorf("user already exists: %s", username)
+	}
+
+	data, err := s.db.CreateUser(context.Background(), user)
+	if err != nil {
+		return fmt.Errorf("could not register user: %w", err)
+	}
+	fmt.Printf("User registered: %+v\n", data)
+
+	// set user in config
+	err = s.Config.SetUser(data.Name)
+	if err != nil {
+		return fmt.Errorf("could not set user in config: %w", err)
+	}
+
+	return nil
+}
+
+func handlerReset(s *state, cmd command) error {
+	// Reset the users table
+	err := s.db.DeleteUsers(context.Background())
+	if err != nil {
+		return fmt.Errorf("could not reset users: %w", err)
+	}
+	fmt.Println("Users table reset successfully")
 	return nil
 }
 

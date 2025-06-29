@@ -1,0 +1,6 @@
+
+# context info
+cnx.txt
+
+# sql migration script
+db_sanity.sh
