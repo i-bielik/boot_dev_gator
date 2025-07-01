@@ -119,6 +119,16 @@ func handlerListUsers(s *state, cmd command) error {
 	return nil
 }
 
+func handlerRssAggregate(s *state, cmd command) error {
+	feedUrl := "https://www.wagslane.dev/index.xml"
+	feed, err := fetchFeed(context.Background(), feedUrl)
+	if err != nil {
+		return fmt.Errorf("could not fetch RSS feed: %w", err)
+	}
+	fmt.Printf("Feed contents:\n%+v\n", *feed)
+	return nil
+}
+
 func (c *commands) run(s *state, cmd command) error {
 	if handler, ok := c.Data[cmd.Name]; ok {
 		return handler(s, cmd)
