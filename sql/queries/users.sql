@@ -14,7 +14,7 @@ FROM users
 WHERE name = $1;
 
 -- name: DeleteUsers :exec
-TRUNCATE TABLE users;
+DELETE FROM users;
 
 -- name: GetUsers :many
 SELECT id, created_at, updated_at, name

@@ -1,11 +1,12 @@
 -- +goose Up
-CREATE TABLE users (
+CREATE TABLE feeds (
     id UUID PRIMARY KEY,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    name TEXT NOT NULL UNIQUE,
-    UNIQUE (name)
+    name TEXT NOT NULL,
+    url TEXT NOT NULL UNIQUE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE
 );
 
 -- +goose Down
-DROP TABLE users;
+DROP TABLE feeds;

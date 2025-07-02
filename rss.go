@@ -7,6 +7,10 @@ import (
 	"html"
 	"io"
 	"net/http"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/i-bielik/boot-dev-gator/internal/database"
 )
 
 type RSSFeed struct {
@@ -64,4 +68,39 @@ func fetchFeed(ctx context.Context, feedURL string) (*RSSFeed, error) {
 	}
 
 	return &feed, nil
+}
+
+func handlerAddFeed(s *state, cmd command) error {
+	if len(cmd.Args) < 2 {
+		return fmt.Errorf("expected two arguments: <feed-name> <feed-url>")
+	}
+	feedName := cmd.Args[0]
+	feedURL := cmd.Args[1]
+
+	// return logged in user info from db
+	existingUser, err := s.db.GetUser(context.Background(), s.Config.CurrentUserName)
+	if err != nil {
+		if err.Error() == "sql: no rows in result set" {
+			return fmt.Errorf("user does not exist: %s", s.Config.CurrentUserName)
+		}
+		return fmt.Errorf("could not check existing user: %w", err)
+	}
+
+	// Create a new feed entry
+	var feed database.CreateFeedParams
+	feed.ID = uuid.New()
+	feed.CreatedAt = time.Now()
+	feed.UpdatedAt = time.Now()
+	feed.Name = feedName
+	feed.Url = feedURL
+	feed.UserID = existingUser.ID
+
+	// Insert the feed into the database
+	data, err := s.db.CreateFeed(context.Background(), feed)
+	if err != nil {
+		return fmt.Errorf("could not add feed: %w", err)
+	}
+	fmt.Printf("Feed added: %+v\n", data)
+
+	return nil
 }
