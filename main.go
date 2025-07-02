@@ -39,6 +39,7 @@ func main() {
 	cmds.register("users", handlerListUsers)
 	cmds.register("agg", handlerRssAggregate)
 	cmds.register("addfeed", handlerAddFeed)
+	cmds.register("feeds", handlerListFeeds)
 
 	// parse cli args
 	args := os.Args
