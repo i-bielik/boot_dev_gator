@@ -77,15 +77,6 @@ func handlerAddFeed(s *state, cmd command, user database.User) error {
 	feedName := cmd.Args[0]
 	feedURL := cmd.Args[1]
 
-	// return logged in user info from db
-	// existingUser, err := s.db.GetUser(context.Background(), s.Config.CurrentUserName)
-	// if err != nil {
-	// 	if err.Error() == "sql: no rows in result set" {
-	// 		return fmt.Errorf("user does not exist: %s", s.Config.CurrentUserName)
-	// 	}
-	// 	return fmt.Errorf("could not check existing user: %w", err)
-	// }
-
 	// Create a new feed entry
 	var feed database.CreateFeedParams
 	feed.ID = uuid.New()
@@ -141,15 +132,6 @@ func handlerFollowFeed(s *state, cmd command, user database.User) error {
 	}
 	feedURL := cmd.Args[0]
 
-	// return logged in user info from db
-	// existingUser, err := s.db.GetUser(context.Background(), s.Config.CurrentUserName)
-	// if err != nil {
-	// 	if err.Error() == "sql: no rows in result set" {
-	// 		return fmt.Errorf("user does not exist: %s", s.Config.CurrentUserName)
-	// 	}
-	// 	return fmt.Errorf("could not check existing user: %w", err)
-	// }
-
 	// Fetch the feed to get its ID
 	feed, err := s.db.ListFeed(context.Background(), feedURL)
 	if err != nil {
@@ -175,14 +157,6 @@ func handlerFollowFeed(s *state, cmd command, user database.User) error {
 }
 
 func handlerListFeedFollows(s *state, cmd command, user database.User) error {
-	// return logged in user info from db
-	// existingUser, err := s.db.GetUser(context.Background(), s.Config.CurrentUserName)
-	// if err != nil {
-	// 	if err.Error() == "sql: no rows in result set" {
-	// 		return fmt.Errorf("user does not exist: %s", s.Config.CurrentUserName)
-	// 	}
-	// 	return fmt.Errorf("could not check existing user: %w", err)
-	// }
 
 	follows, err := s.db.GetFeedFollowsForUser(context.Background(), user.ID)
 	if err != nil {
@@ -196,5 +170,26 @@ func handlerListFeedFollows(s *state, cmd command, user database.User) error {
 	for _, follow := range follows {
 		fmt.Printf("Feed name: %s\n", follow.FeedName)
 	}
+	return nil
+}
+
+func handlerUnfollowFeed(s *state, cmd command, user database.User) error {
+	if len(cmd.Args) < 1 {
+		return fmt.Errorf("expected one argument: <feed-url>")
+	}
+	feedURL := cmd.Args[0]
+
+	deleteInfo := database.DeleteFeedFollowParams{
+		UserID: user.ID,
+		Url:    feedURL,
+	}
+
+	// Delete the feed follow entry for the current user
+	err := s.db.DeleteFeedFollow(context.Background(), deleteInfo)
+	if err != nil {
+		return fmt.Errorf("could not unfollow feed: %w", err)
+	}
+	fmt.Printf("Unfollowed feed: %s\n", feedURL)
+
 	return nil
 }

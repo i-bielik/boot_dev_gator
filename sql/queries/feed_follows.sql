@@ -35,3 +35,8 @@ JOIN users ON ff.user_id = users.id
 WHERE ff.user_id = $1
 ORDER BY ff.created_at DESC;
 
+-- name: DeleteFeedFollow :exec
+DELETE FROM feed_follows ff
+WHERE ff.user_id = $1
+  AND ff.feed_id = (SELECT feed_id FROM feeds WHERE url = $2);
+
