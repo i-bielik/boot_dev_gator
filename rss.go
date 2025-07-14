@@ -70,6 +70,32 @@ func fetchFeed(ctx context.Context, feedURL string) (*RSSFeed, error) {
 	return &feed, nil
 }
 
+func scrapeFeeds(s *state) error {
+	ctx := context.Background()
+	// Fetch next feed to scrape
+	feed, err := s.db.GetNextFeedToFetch(ctx)
+	if err != nil {
+		return fmt.Errorf("could not get next feed to fetch: %w", err)
+	}
+	// Update the feed's last fetched time
+	err = s.db.UpdateFetchedFeed(ctx, feed.ID)
+	if err != nil {
+		return fmt.Errorf("could not update fetched feed: %w", err)
+	}
+	// Fetch the feed
+	fetchedFeed, err := fetchFeed(ctx, feed.Url)
+	if err != nil {
+		return fmt.Errorf("could not fetch feed: %w", err)
+	}
+	fmt.Println("Fetched feed: ", feed.Name)
+	// Iterate over each item in the feed
+	for _, item := range fetchedFeed.Channel.Item {
+		// print Title
+		fmt.Printf("Title: %s\n", item.Title)
+	}
+	return nil
+}
+
 func handlerAddFeed(s *state, cmd command, user database.User) error {
 	if len(cmd.Args) < 2 {
 		return fmt.Errorf("expected two arguments: <feed-name> <feed-url>")

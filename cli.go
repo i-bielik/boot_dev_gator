@@ -120,13 +120,19 @@ func handlerListUsers(s *state, cmd command) error {
 }
 
 func handlerRssAggregate(s *state, cmd command) error {
-	feedUrl := "https://www.wagslane.dev/index.xml"
-	feed, err := fetchFeed(context.Background(), feedUrl)
-	if err != nil {
-		return fmt.Errorf("could not fetch RSS feed: %w", err)
+	if len(cmd.Args) < 1 {
+		return fmt.Errorf("expected one argument: <time-duration>")
 	}
-	fmt.Printf("Feed contents:\n%+v\n", *feed)
-	return nil
+	timeBetweenRequests, err := time.ParseDuration(cmd.Args[0])
+	if err != nil {
+		return fmt.Errorf("could not parse time duration: %w", err)
+	}
+
+	ticker := time.NewTicker(timeBetweenRequests)
+	for ; ; <-ticker.C {
+		scrapeFeeds(s)
+	}
+
 }
 
 func (c *commands) run(s *state, cmd command) error {
