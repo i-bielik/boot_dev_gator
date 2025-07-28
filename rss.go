@@ -2,11 +2,15 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/xml"
 	"fmt"
 	"html"
 	"io"
+	"log"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -87,12 +91,66 @@ func scrapeFeeds(s *state) error {
 	if err != nil {
 		return fmt.Errorf("could not fetch feed: %w", err)
 	}
-	fmt.Println("Fetched feed: ", feed.Name)
+	// fmt.Println("Fetched feed: ", feed.Name)
 	// Iterate over each item in the feed
 	for _, item := range fetchedFeed.Channel.Item {
-		// print Title
-		fmt.Printf("Title: %s\n", item.Title)
+		publishedAt := sql.NullTime{}
+		if t, err := time.Parse(time.RFC1123Z, item.PubDate); err == nil {
+			publishedAt = sql.NullTime{
+				Time:  t,
+				Valid: true,
+			}
+		}
+
+		_, err = s.db.CreatePost(context.Background(), database.CreatePostParams{
+			ID:        uuid.New(),
+			CreatedAt: time.Now().UTC(),
+			UpdatedAt: time.Now().UTC(),
+			FeedID:    feed.ID,
+			Title:     item.Title,
+			Description: sql.NullString{
+				String: item.Description,
+				Valid:  true,
+			},
+			Url:         item.Link,
+			PublishedAt: publishedAt,
+		})
+		if err != nil {
+			if strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
+				continue
+			}
+			log.Printf("Couldn't create post: %v", err)
+			continue
+		}
 	}
+	fmt.Printf("Feed %s collected, %v posts found\n", feed.Name, len(fetchedFeed.Channel.Item))
+	return nil
+}
+
+func handlerBrowsePosts(s *state, cmd command, user database.User) error {
+	limit := 2
+	if len(cmd.Args) == 1 {
+		if specifiedLimit, err := strconv.Atoi(cmd.Args[0]); err == nil {
+			limit = specifiedLimit
+		} else {
+			return fmt.Errorf("invalid limit: %w", err)
+		}
+	}
+
+	posts, err := s.db.GetPostPerUser(context.Background(), database.GetPostPerUserParams{
+		UserID: user.ID,
+		Limit:  int32(limit),
+	})
+	if err != nil {
+		return fmt.Errorf("couldn't get posts for user: %w", err)
+	}
+
+	fmt.Printf("Found %d posts for user %s:\n", len(posts), user.Name)
+	for _, post := range posts {
+		fmt.Printf("%s --- %s --- %s\n", post.PublishedAt.Time.Format("2021-01-01"), post.FeedName, post.Title)
+		fmt.Println("=====================================")
+	}
+
 	return nil
 }
 
